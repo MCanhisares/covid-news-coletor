@@ -99,37 +99,6 @@ def pollArticles():
 
 def getsha256(text):
 	return hashlib.sha256(text.encode('utf-8')).hexdigest()
-	
-		
-
-
-
-
-# def getTweetsForDate(date: dt):
-# 	DateController.DATE = date			
-# 	analytics.setDate(date)
-
-# 	initialSection = getSectionProgress()
-# 	lastSection = math.ceil(len(STOCK_CODES) / LIMIT)
-
-# 	if (initialSection == lastSection):
-# 		logging.info(f'Not getting tweets - initialSection: {initialSection} / lastSection: {lastSection}')
-# 		return
-# 	try: 
-# 		for section in range(initialSection, lastSection):
-# 			getTweets(section)
-# 		saveSectionProgress(lastSection)
-# 	except DownloadTweetsError as err:
-# 		logging.exception(err.message)
-# 	finally:
-# 		analytics.logResults()
-# 		analytics.saveResults()
-
-# def queryTweets(event, context):
-# 	logging.info(f'This Function was triggered by messageId {context.event_id} published at {context.timestamp}')
-# 	logging.info(f'{event}')
-# 	if 'data' in event:
-# 		getTweetsForDate(dt.today())
 
 if __name__ == '__main__':
 	pollArticles()
