@@ -100,5 +100,8 @@ def pollArticles():
 def getsha256(text):
 	return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
+def pubsub_receiver(event, context):
+	pollArticles()
+
 if __name__ == '__main__':
 	pollArticles()
