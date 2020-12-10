@@ -138,5 +138,8 @@ def getsha256(text):
 def pubsub_receiver(event, context):
 	pollArticles()
 
+def http_receiver(request):
+	pollArticles()
+
 if __name__ == '__main__':
 	pollArticles()
