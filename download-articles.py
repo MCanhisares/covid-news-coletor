@@ -5,6 +5,9 @@ from typing import List
 from google.cloud import firestore
 from functools import reduce
 from newsapi import NewsApiClient
+from textblob.classifiers import NaiveBayesClassifier
+import nltk
+import pickle5 as pickle
 import time
 import base64
 import sys
@@ -14,7 +17,9 @@ import config
 
 DB = firestore.Client(project="covid-news-291320")
 
-KEYWORDS = [ "corona", "covid", "pandemia", "SARS"]
+KEYWORDS = ["corona", "covid", "pandemia", "SARS", "covid-19"]
+
+STOP_WORDS = [ 'a', 'à', 'agora', 'ainda', 'alguém', 'algum', 'alguma', 'algumas', 'alguns', 'ampla', 'amplas', 'amplo', 'amplos', 'ante', 'antes', 'ao', 'aos', 'após', 'aquela', 'aquelas', 'aquele', 'aqueles', 'aquilo', 'as', 'às', 'até', 'através', 'cada', 'coisa', 'coisas', 'com', 'como', 'contra', 'contudo', 'da', 'daquele', 'daqueles', 'das', 'de', 'dela', 'delas', 'dele', 'deles', 'depois', 'dessa', 'dessas', 'desse', 'desses', 'desta', 'destas', 'deste', 'destes', 'deve', 'devem', 'devendo', 'dever', 'deverá', 'deverão', 'deveria', 'deveriam', 'devia', 'deviam', 'disse', 'disso', 'disto', 'dito', 'diz', 'dizem', 'do', 'dos','e','é','ela','elas','ele','eles','em','entre','era','eram','éramos','essa','essas','esse','esses','esta','está','estamos','estão','estas','estava','estavam','estávamos','este','esteja','estejam','estejamos','estes','esteve','estive','estivemos','estiver','estivera','estiveram','estivéramos','estiverem','estivermos','estivesse','estivessem','estivéssemos','estou','eu','foi','fomos','for','fora','foram','fôramos','forem','formos','fosse','fossem','fôssemos','fui','há','haja','hajam','hajamos','hão','havemos','havia','hei','houve','houvemos','houver','houvera','houverá','houveram','houvéramos','houverão','houverei','houverem','houveremos','houveria','houveriam','houveríamos','houvermos','houvesse','houvessem','houvéssemos','isso','isto','já','lhe','lhes','mais','mas','me','mesmo','meu','meus','minha','minhas','muito','na','não','nas','nem','no','nos','nós','nossa','nossas','nosso','nossos','num','numa','o','os','ou','para','pela','pelas','pelo','pelos','por','qual','quando','que','quem','são','se','seja','sejam','sejamos','sem','ser','será','serão','serei','seremos','seria','seriam','seríamos','seu','seus','só','sobre','somos','sou','sua','suas','também','te','tem','têm','temos','tenha','tenham','tenhamos','tenho','ter','terá','terão','terei','teremos','teria','teriam','teríamos','teu','teus','teve','tinha','tinham','tínhamos','tive','tivemos','tiver','tivera','tiveram','tivéramos','tiverem','tivermos','tivesse','tivessem','tivéssemos','tu','tua','tuas','um','uma','você','vocês','vos']
 
 class DateController:
 	DATE = dt.today()
@@ -52,13 +57,42 @@ class Article():
             .format(self.articleId, self.author, self.category, self.description,
                     self.publishedAt, self.title, self.url, self.urlToImage))
 
+def removeArticleSource(text:str):
+	index = text.rfind('-')	
+	return text[:index - 1] if index > 1 else text
+
+
+def removeStopWords(text: str):
+	splitedResults = []	
+	splited = text.split()
+	for word in splited:
+		if word not in STOP_WORDS and word not in KEYWORDS:
+			splitedResults.append(word)
+	return splitedResults
+
+def stemWords(words):
+	stemmedWords = []
+	stemmer = nltk.stem.RSLPStemmer()
+	for word in words:
+		stemmedWords.append(stemmer.stem(word))
+	return stemmedWords
+
+def classifyCategory(classfier, text):
+	words = removeStopWords(text)
+	stemmedWords = stemWords(words)
+	textToClassify = " ".join(stemmedWords)	
+	return classfier.classify(textToClassify)
+
+def loadClassifier():
+	file = open( r"Classificador.pickle",'rb' )
+	return pickle.load( file )
 
 def setupNewsApi():
 	return NewsApiClient(api_key=config.NEWS_API_KEY)	
 
 def getArticles(query, page = None):		
 	api = setupNewsApi()	
-	responsedict = api.get_top_headlines(country="br", page_size=100, q=query)
+	responsedict = api.get_top_headlines(country="br", page_size=1, q=query)
 	if "articles" in responsedict:
 		return responsedict["articles"]
 	return []
@@ -80,21 +114,22 @@ def filterArticles(articles):
 	return filteredArticles	
 
 def pollArticles():
-	articlesDict = []
+	classifier = loadClassifier()
+	articlesList = []	
 	for word in KEYWORDS:
-		articlesDict.extend(getArticles(word))
+		articlesList.extend(getArticles(word))	
+	for article in articlesList:		
+		article["title"] = removeArticleSource(article["title"])			
+		article["category"] = classifyCategory(classifier, article["title"])
 	articles = map(lambda article: 
 	Article(articleId=getsha256(article["url"]),
 	 author=article["author"],
-	 category=None, 
+	 category=article["category"], 
 	 description=article["description"], 
 	 publishedAt=article["publishedAt"],
 	 title=article["title"],
 	 url=article["url"],
-	 urlToImage=article["urlToImage"]), articlesDict)
-
-	# TODO: classify articles
-
+	 urlToImage=article["urlToImage"]), articlesList)	
 	saveArticles(articles)
 
 def getsha256(text):
