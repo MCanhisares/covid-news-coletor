@@ -70,7 +70,11 @@ def removeStopWords(text: str):
 			splitedResults.append(word)
 	return splitedResults
 
-def stemWords(words):
+def downloadNltkPackages():
+	nltk.download('rslp')
+	nltk.download('punkt')
+
+def stemWords(words):	
 	stemmedWords = []
 	stemmer = nltk.stem.RSLPStemmer()
 	for word in words:
@@ -84,6 +88,7 @@ def classifyCategory(classfier, text):
 	return classfier.classify(textToClassify)
 
 def loadClassifier():
+	downloadNltkPackages()
 	fs = gcsfs.GCSFileSystem(project='covid-news-291320')
 	filename = "covid-news-291320.appspot.com/Classificador.pickle"
 	with fs.open(filename, 'rb') as handle:
