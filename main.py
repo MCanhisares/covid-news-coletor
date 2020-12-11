@@ -14,6 +14,7 @@ import sys
 import math 
 import hashlib
 import config
+import gcsfs
 
 DB = firestore.Client(project="covid-news-291320")
 
@@ -61,7 +62,6 @@ def removeArticleSource(text:str):
 	index = text.rfind('-')	
 	return text[:index - 1] if index > 1 else text
 
-
 def removeStopWords(text: str):
 	splitedResults = []	
 	splited = text.split()
@@ -84,8 +84,10 @@ def classifyCategory(classfier, text):
 	return classfier.classify(textToClassify)
 
 def loadClassifier():
-	file = open( r"Classificador.pickle",'rb' )
-	return pickle.load( file )
+	fs = gcsfs.GCSFileSystem(project='covid-news-291320')
+	filename = "covid-news-291320.appspot.com/Classificador.pickle"
+	with fs.open(filename, 'rb') as handle:
+		return pickle.load(handle)
 
 def setupNewsApi():
 	return NewsApiClient(api_key=config.NEWS_API_KEY)	
